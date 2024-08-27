@@ -16,6 +16,8 @@ attrs==24.2.0
     # via jsonlines
 dr-util @ git+https://github.com/drothermel/dr_util.git@3d94678f81a1d20bc968f5a794590a43a94bb0f0
     # via roam-man
+feedparser==6.0.11
+    # via roam-man
 jsonlines==4.0.0
     # via dr-util
 loguru==0.7.2
@@ -26,3 +28,5 @@ omegaconf==2.3.0
     # via dr-util
 pyyaml==6.0.2
     # via omegaconf
+sgmllib3k==1.0.0
+    # via feedparser
