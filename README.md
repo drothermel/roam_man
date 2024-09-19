@@ -21,5 +21,12 @@ python -c "import sys; print(sys.prefix)"
 # a path to rye venv
 ```
 
+## IPynb
+
+Kick off jupyterlab with rye:
+```
+# after having installed "jupyter-lab" and "jupyterlab_vim"
+rye run jupyter-lab
+```
 
 
