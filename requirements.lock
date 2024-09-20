@@ -14,10 +14,24 @@ antlr4-python3-runtime==4.9.3
     # via omegaconf
 attrs==24.2.0
     # via jsonlines
-dr-util @ git+https://github.com/drothermel/dr_util.git@3d94678f81a1d20bc968f5a794590a43a94bb0f0
+boto3==1.35.23
+    # via dr-util
+botocore==1.35.23
+    # via boto3
+    # via s3transfer
+certifi==2024.8.30
+    # via requests
+charset-normalizer==2.1.1
+    # via requests
+dr-util @ git+https://github.com/drothermel/dr_util@7d27ee8e6281f5456ddeb5cba3628185211903e1
     # via roam-man
 feedparser==6.0.11
     # via roam-man
+idna==3.10
+    # via requests
+jmespath==1.0.1
+    # via boto3
+    # via botocore
 jsonlines==4.0.0
     # via dr-util
 loguru==0.7.2
@@ -26,7 +40,20 @@ numpy==2.1.0
     # via dr-util
 omegaconf==2.3.0
     # via dr-util
+python-dateutil==2.9.0.post0
+    # via botocore
 pyyaml==6.0.2
     # via omegaconf
+requests==2.31.0
+    # via dr-util
+s3transfer==0.10.2
+    # via boto3
+schema==0.7.7
+    # via dr-util
 sgmllib3k==1.0.0
     # via feedparser
+six==1.16.0
+    # via python-dateutil
+urllib3==1.26.20
+    # via botocore
+    # via requests

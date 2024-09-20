@@ -6,7 +6,7 @@ authors = [
     { name = "Danielle Rothermel", email = "danielle.rothermel@gmail.com" }
 ]
 dependencies = [
-    "dr-util @ git+https://github.com/drothermel/dr_util.git",
+    "dr-util @ git+https://github.com/drothermel/dr_util@roam_sdk",
     "feedparser>=6.0.11",
 ]
 readme = "README.md"
