@@ -45,6 +45,6 @@ def test_random_valid_dates(faker_instance):
 def test_random_invalid_dates(faker_instance):
     for _ in range(5):
         invalid_date = generate_random_invalid_date(faker_instance)
-        assert (
-            not vu.is_valid_date(invalid_date)
+        assert not vu.is_valid_date(
+            invalid_date
         ), f"Invalid date passed: {invalid_date}"
