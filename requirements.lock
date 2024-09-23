@@ -22,6 +22,8 @@ botocore==1.35.24
     # via s3transfer
 dr-util @ git+https://github.com/drothermel/dr_util.git@45f13af3f9c8941580993e3f48c04198c913e075
     # via roam-man
+faker==29.0.0
+    # via roam-man
 feedparser==6.0.11
     # via roam-man
 hydra-core==1.3.0
@@ -42,6 +44,7 @@ packaging==24.1
     # via hydra-core
 python-dateutil==2.9.0.post0
     # via botocore
+    # via faker
 pyyaml==6.0.2
     # via omegaconf
 s3transfer==0.10.2
