@@ -12,6 +12,7 @@ def build_roam_node(
     uid,
     create_time,
     edit_time,
+    string,
     user_create,
     user_edit,
     title=None,
@@ -22,6 +23,7 @@ def build_roam_node(
         "uid": uid,
         "create-time": create_time,
         "edit-time": edit_time,
+        "string": string,
         ":create/user": user_create,
         ":edit/user": user_edit,
     }
@@ -34,53 +36,50 @@ def build_roam_node(
     return base_node
 
 
-# Hypothesis strategy to generate nested roam-like dictionaries
-def nested_roam_dict():
-    # Strategy for refs: {'uid': str}
-    refs_strategy = st.fixed_dictionaries({"uid": st.text(min_size=5, max_size=10)})
+def make_strategy_from_children(children=None):
+    # Strategy to generate text without backslashes
+    allowed_characters = st.characters(
+        whitelist_categories=("Ll", "Lu", "Nd"), whitelist_characters=" "
+    )
+    nice_text = st.text(alphabet=allowed_characters, min_size=5, max_size=10)
 
-    # Strategy to create roam nodes where some keys can be completely omitted
-    optional_dict = st.builds(
+    # Strategy for refs: {'uid': str}
+    refs_strategy = st.lists(
+        st.fixed_dictionaries({"uid": nice_text}),
+        min_size=1,
+        max_size=10,
+    )
+
+    if children is None:
+        children_st = st.none()
+    else:
+        children_st = st.one_of(
+            st.none(),
+            st.lists(children, min_size=1, max_size=3),
+        )
+
+    return st.builds(
         build_roam_node,
-        uid=st.text(min_size=5, max_size=10),
+        uid=nice_text,
         create_time=st.integers(min_value=1, max_value=1726763135105),
         edit_time=st.integers(min_value=1, max_value=1726763135105),
-        user_create=st.fixed_dictionaries(
-            {":user/uid": st.text(min_size=5, max_size=30)}
-        ),
-        user_edit=st.fixed_dictionaries(
-            {":user/uid": st.text(min_size=5, max_size=30)}
-        ),
-        title=st.one_of(st.none(), st.text(min_size=1, max_size=50)),  # Optional title
-        children=st.one_of(
-            st.none(), st.lists(st.just({}), max_size=0)
-        ),  # Optional children
+        string=nice_text,
+        user_create=st.fixed_dictionaries({":user/uid": nice_text}),
+        user_edit=st.fixed_dictionaries({":user/uid": nice_text}),
+        title=st.one_of(st.none(), nice_text),
+        children=children_st,  # Optional children
         refs=st.one_of(st.none(), refs_strategy),  # Optional refs
     )
 
-    # Recursive strategy for nested roam nodes with optional fields
+
+# Hypothesis strategy to generate nested roam-like dictionaries
+def nested_roam_dict():
+    first_node_dict = make_strategy_from_children()
     nested_roam_dict = st.recursive(
-        optional_dict,
-        lambda children: st.builds(
-            build_roam_node,
-            uid=st.text(min_size=5, max_size=10),
-            create_time=st.integers(min_value=1, max_value=1726763135105),
-            edit_time=st.integers(min_value=1, max_value=1726763135105),
-            user_create=st.fixed_dictionaries(
-                {":user/uid": st.text(min_size=5, max_size=30)}
-            ),
-            user_edit=st.fixed_dictionaries(
-                {":user/uid": st.text(min_size=5, max_size=30)}
-            ),
-            title=st.one_of(st.none(), st.text(min_size=1, max_size=50)),
-            children=st.one_of(
-                st.none(), st.lists(children, max_size=3)
-            ),  # Optional children
-            refs=st.one_of(st.none(), refs_strategy),  # Optional refs
-        ),
+        first_node_dict,
+        make_strategy_from_children,
         max_leaves=5,
     )
-
     return nested_roam_dict
 
 
@@ -93,6 +92,7 @@ def static_test_data():
             "uid": "tx0S2zj5t",
             "create-time": 1694303705806,
             "edit-time": 1694303705806,
+            "string": "nothing",
             "title": "Danielle Rothermel",
             ":create/user": {":user/uid": "XRlk7Tpv53UEosC4qi7bcFHhVPx1"},
             ":edit/user": {":user/uid": "XRlk7Tpv53UEosC4qi7bcFHhVPx1"},
@@ -101,6 +101,7 @@ def static_test_data():
         {
             "create-time": 1694303843654,
             "title": "September 10th, 2023",
+            "string": "nothing",
             ":create/user": {":user/uid": "XRlk7Tpv53UEosC4qi7bcFHhVPx1"},
             ":log/id": 1694304000000,
             "children": [],
@@ -112,6 +113,7 @@ def static_test_data():
         {
             "create-time": 1699907527267,
             "title": "Classification and Correction of Non-Representative News Headlines",
+            "string": "nothing",
             ":create/user": {":user/uid": "XRlk7Tpv53UEosC4qi7bcFHhVPx1"},
             "children": [
                 {
@@ -136,29 +138,29 @@ def check_expected_output(data, output):
     out_lines = output.split("\n")
     if "title" in data:
         assert data["title"] == out_lines[0], "Title not in first line"
-        assert data["uid"] in out_lines[1], "Uid not in second line"
+        assert data["uid"] in out_lines[1], "uid not in second line"
         if "refs" in data:
             assert data["refs"][0]["uid"] in out_lines[1], "Refs incorrect"
     if "children" not in data:
-        assert len(out_lines) <= 2, "Too many lines for one node tree"
+        assert len(out_lines) <= 3, "Too many lines for one node tree"
     else:
         assert len(out_lines) > 1, "Too few lines for multi-node tree"
 
 
 # Test using static test data
-@pytest.mark.parametrize("idx", [0, 1, 2])
-def test_print_roam_node_static(idx):
-    stdata = static_test_data()
+@pytest.mark.parametrize("static_idx", [0, 1, 2])
+def test_raw_roam_data_to_str_static(static_idx, static_test_data):
+    static_data = static_test_data[static_idx]
     check_expected_output(
-        stdata[idx],
-        zu.roam_node_tree_to_str(static_test_data),
+        static_data,
+        zu.raw_roam_data_to_str(static_data),
     )
 
 
-# Test using dynamic test data with Hypothesis
+# Test using dynamic test data with Hypothesis, main goal is to look for crashes
 @given(data=st.lists(nested_roam_dict(), min_size=1, max_size=10))
-def test_print_roam_node_dynamic(data):
+def test_raw_roam_data_to_str_dynamic(data):
     check_expected_output(
-        data,
-        zu.roam_node_tree_to_str(data),
+        data[0],
+        zu.raw_roam_data_to_str(data[0]),
     )
