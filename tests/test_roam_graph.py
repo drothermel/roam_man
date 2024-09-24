@@ -2,9 +2,9 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from roam_man import viz_utils as zu
+from roam_man import roam_graph as gu
 
-# # Setup Hypothesis Strategies and Functions # #
+# ----- Setup Hypothesis Strategies and Functions ----- #
 
 
 # Function to construct the base roam node
@@ -153,7 +153,7 @@ def test_raw_roam_data_to_str_static(static_idx, static_test_data):
     static_data = static_test_data[static_idx]
     check_expected_output(
         static_data,
-        zu.raw_roam_data_to_str(static_data),
+        gu.roam_data_to_full_str(static_data),
     )
 
 
@@ -162,5 +162,5 @@ def test_raw_roam_data_to_str_static(static_idx, static_test_data):
 def test_raw_roam_data_to_str_dynamic(data):
     check_expected_output(
         data[0],
-        zu.raw_roam_data_to_str(data[0]),
+        gu.roam_data_to_full_str(data[0]),
     )
