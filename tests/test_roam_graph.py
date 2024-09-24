@@ -138,7 +138,34 @@ def build_roam_node(
     return base_node
 
 
-def make_strategy_from_children(children=None):
+def build_roam_page(
+    uid,
+    create_time,
+    edit_time,
+    string,
+    user_create,
+    user_edit,
+    title=None,
+    children=None,
+    refs=None,
+):
+    base_node = build_roam_node(
+        uid,
+        create_time,
+        edit_time,
+        string,
+        user_create,
+        user_edit,
+        title,
+        children,
+        refs,
+    )
+    base_node["title"] = string
+    return base_node
+
+
+def make_strategy_from_children(children):
+    page_only = True
     # Strategy to generate text without backslashes
     allowed_characters = st.characters(
         whitelist_categories=("Ll", "Lu", "Nd"), whitelist_characters=" "
@@ -160,8 +187,10 @@ def make_strategy_from_children(children=None):
             st.lists(children, min_size=1, max_size=3),
         )
 
+    fxn = build_roam_page if page_only else build_roam_node
+
     return st.builds(
-        build_roam_node,
+        fxn,
         uid=nice_text,
         create_time=st.integers(min_value=1, max_value=1726763135105),
         edit_time=st.integers(min_value=1, max_value=1726763135105),
@@ -176,17 +205,12 @@ def make_strategy_from_children(children=None):
 
 # Hypothesis strategy to generate nested roam-like dictionaries
 def nested_roam_dict_st():
-    first_node_dict = make_strategy_from_children()
-    nested_roam_dict = st.recursive(
+    first_node_dict = make_strategy_from_children(children=None)
+    return st.recursive(
         first_node_dict,
         make_strategy_from_children,
         max_leaves=5,
     )
-    return nested_roam_dict
-
-
-def full_raw_data_st():
-    return st.lists(nested_roam_dict_st, min_size=1, max_size=4)
 
 
 # ----- Test representation utils ----- #
@@ -266,32 +290,48 @@ def test_roam_node_repr(valid_json):
     assert "ref1" in repr_str
 
 
-@given(valid_json=full_raw_data_st)
-def test_roam_node_initialization_hypothesis(valid_json):
-    node = gu.RoamNode(valid_json[0])
+@given(
+    data=st.lists(
+        nested_roam_dict_st(), min_size=1, max_size=10, unique_by=lambda x: x["title"]
+    )
+)
+def test_roam_node_initialization_hypothesis(data):
+    node = gu.RoamNode(data[0])
     assert node.uid is not None
     assert isinstance(node.refs, list)
 
 
-@given(valid_json=full_raw_data_st)
-def test_roam_node_recursive_refs_hypothesis(valid_json):
-    node = gu.RoamNode(valid_json[0])
+@given(
+    data=st.lists(
+        nested_roam_dict_st(), min_size=1, max_size=10, unique_by=lambda x: x["title"]
+    )
+)
+def test_roam_node_recursive_refs_hypothesis(data):
+    node = gu.RoamNode(data[0])
     assert isinstance(node.recursive_refs, set)
     assert all(isinstance(ref, str) for ref in node.recursive_refs)
 
 
-@given(valid_json=full_raw_data_st)
-def test_roam_node_repr_hypothesis(valid_json):
-    node = gu.RoamNode(valid_json[0])
+@given(
+    data=st.lists(
+        nested_roam_dict_st(), min_size=1, max_size=10, unique_by=lambda x: x["title"]
+    )
+)
+def test_roam_node_repr_hypothesis(data):
+    node = gu.RoamNode(data[0])
     repr_str = repr(node)
-    assert node.uid in repr_str
+    if node.title is not None:
+        assert node.uid in repr_str
+    else:
+        assert node.string is not None
+        assert node.string in repr_str
     assert isinstance(repr_str, str)
 
 
 # ----- Test gu.RoamGraph ----- #
 
 
-@patch("fu.load_file")
+@patch("dr_util.file_utils.load_file")
 def test_roam_graph_initialization(mock_load_file, raw_data):
     # Mock file loading and ensure that the graph initializes properly
     mock_load_file.return_value = raw_data
@@ -304,8 +344,8 @@ def test_roam_graph_initialization(mock_load_file, raw_data):
     assert graph.uid_to_title["page2"] == "Page 2"
 
 
-@patch("fu.load_file")
-@patch("fu.dump_file")
+@patch("dr_util.file_utils.load_file")
+@patch("dr_util.file_utils.dump_file")
 def test_roam_graph_checkpoint(mock_dump_file, mock_load_file, raw_data):
     # Mock file loading and checkpoint saving
     mock_load_file.return_value = raw_data
@@ -316,7 +356,7 @@ def test_roam_graph_checkpoint(mock_dump_file, mock_load_file, raw_data):
 
 
 def test_roam_graph_get_page_node_by_index(raw_data):
-    with patch("fu.load_file", return_value=raw_data):
+    with patch("dr_util.file_utils.load_file", return_value=raw_data):
         graph = gu.RoamGraph("fake_path")
 
         page_node = graph.get_page_node_by_index(0)
@@ -328,24 +368,32 @@ def test_roam_graph_get_page_node_by_index(raw_data):
         assert page_node.title == "Page 2"
 
 
-@given(raw_data=full_raw_data_st)
-@patch("fu.load_file")
-def test_roam_graph_initialization_hypothesis(mock_load_file, raw_data):
+@given(
+    data=st.lists(
+        nested_roam_dict_st(), min_size=1, max_size=10, unique_by=lambda x: x["title"]
+    )
+)
+@patch("dr_util.file_utils.load_file")
+def test_roam_graph_initialization_hypothesis(mock_load_file, data):
     # Mock file loading
-    mock_load_file.return_value = raw_data
+    mock_load_file.return_value = data
     graph = gu.RoamGraph("fake_path")
 
-    assert len(graph.roam_pages) == len(raw_data)
+    assert len(graph.roam_pages) == len(data)
     assert all(isinstance(k, str) for k in graph.roam_pages.keys())
     assert all(isinstance(v, gu.RoamNode) for v in graph.roam_pages.values())
 
 
-@given(raw_data=full_raw_data_st)
-@patch("fu.load_file")
-@patch("fu.dump_file")
-def test_roam_graph_checkpoint_hypothesis(mock_dump_file, mock_load_file, raw_data):
+@given(
+    data=st.lists(
+        nested_roam_dict_st(), min_size=1, max_size=10, unique_by=lambda x: x["title"]
+    )
+)
+@patch("dr_util.file_utils.load_file")
+@patch("dr_util.file_utils.dump_file")
+def test_roam_graph_checkpoint_hypothesis(mock_dump_file, mock_load_file, data):
     # Mock file loading and checkpoint saving
-    mock_load_file.return_value = raw_data
+    mock_load_file.return_value = data
 
     graph = gu.RoamGraph("fake_path", checkpoint_path="fake_checkpoint")  # noqa: F841
 
@@ -353,13 +401,17 @@ def test_roam_graph_checkpoint_hypothesis(mock_dump_file, mock_load_file, raw_da
     mock_dump_file.assert_called_once()
 
 
-@given(raw_data=full_raw_data_st)
-@patch("fu.load_file")
-def test_roam_graph_get_page_node_by_index_hypothesis(mock_load_file, raw_data):
-    mock_load_file.return_value = raw_data
+@given(
+    data=st.lists(
+        nested_roam_dict_st(), min_size=1, max_size=10, unique_by=lambda x: x["title"]
+    )
+)
+@patch("dr_util.file_utils.load_file")
+def test_roam_graph_get_page_node_by_index_hypothesis(mock_load_file, data):
+    mock_load_file.return_value = data
     graph = gu.RoamGraph("fake_path")
 
-    for idx, page in enumerate(raw_data):
+    for idx, page in enumerate(data):
         page_node = graph.get_page_node_by_index(idx)
         assert page_node.uid == page["uid"]
         assert page_node.title == page["title"]
