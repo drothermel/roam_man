@@ -4,6 +4,7 @@ from dr_util import file_utils as fu
 
 # ---------------- Representation & Printing Utils ---------------- #
 
+
 # To use: print(buffer.getvalue()); buffer.close()
 def add_roam_elem_str_to_buffer(
     uid, refs=[], title=None, string=None, buffer=None, depth=0
@@ -22,6 +23,7 @@ def add_roam_elem_str_to_buffer(
             buffer.write(f"\n{indent} ==> {uid=} {refs=}\n")
     return buffer
 
+
 # Works for anything where the __dict__ method returns a dict
 #   with the expected keys
 def roam_data_to_full_str(roam_data_elem):
@@ -37,7 +39,7 @@ def roam_data_to_full_str(roam_data_elem):
         if not isinstance(node, dict):
             node = node.__dict__
 
-        refs = [r if isinstance(r, str) else r['uid'] for r in node.get("refs", [])]
+        refs = [r if isinstance(r, str) else r["uid"] for r in node.get("refs", [])]
         add_roam_elem_str_to_buffer(
             uid=node["uid"],
             refs=refs,
@@ -55,7 +57,8 @@ def roam_data_to_full_str(roam_data_elem):
     result = buffer.getvalue()
     buffer.close()
     return result
-    
+
+
 # ---------------- Roam Node & Graph ---------------- #
 
 
@@ -65,8 +68,8 @@ class RoamNode:
             raise Exception("RoamNode expects a non-null dict as input")
 
         # [[DONE]] and [[TODO]]
-        uid_blacklist = {'KVGudD7AP', 'e2rS3SVH7'}  
-        basic_keys = ['title', 'string', 'uid', 'create-time', 'edit-time']
+        uid_blacklist = {"KVGudD7AP", "e2rS3SVH7"}
+        basic_keys = ["title", "string", "uid", "create-time", "edit-time"]
 
         self.depth = start_depth
         self.parent = parent
@@ -76,15 +79,16 @@ class RoamNode:
 
         # Initialize refs
         self.refs = [
-            r['uid'] for r in json.get('refs', []) if r['uid'] not in uid_blacklist
+            r["uid"] for r in json.get("refs", []) if r["uid"] not in uid_blacklist
         ]
         self.recursive_refs = set(self.refs)
 
         # Recursively build tree of children
         self.children = [
-            RoamNode(ch, parent=self, start_depth=self.depth+1) for ch in self.raw_data.get('children', [])
+            RoamNode(ch, parent=self, start_depth=self.depth + 1)
+            for ch in self.raw_data.get("children", [])
         ]
-            
+
         # Update recursive refs for the node and propagate to parent
         if self.parent:
             self.parent.recursive_refs.update(self.recursive_refs)
@@ -103,7 +107,8 @@ class RoamNode:
 
     def print_full(self):
         print(roam_data_to_full_str(self))
-    
+
+
 # Uses validation_utils
 # Uses viz_utils
 class RoamGraph:
@@ -118,10 +123,10 @@ class RoamGraph:
 
         # Initialize
         self.parse_raw_data()
-        
+
     def parse_raw_data(self):
         self.raw_data = fu.load_file(self.input_path)
-        self.roam_pages = {rd['title']: RoamNode(rd) for rd in self.raw_data}
+        self.roam_pages = {rd["title"]: RoamNode(rd) for rd in self.raw_data}
         self.uid_to_title = {v.uid: k for k, v in self.roam_pages.items()}
 
         if self.checkpoint_path is not None:
@@ -134,5 +139,5 @@ class RoamGraph:
         return self.roam_pages[title]
 
     def get_page_node_by_index(self, idx):
-        title = self.get_raw_elem(idx)['title']
+        title = self.get_raw_elem(idx)["title"]
         return self.get_page_node(title)
