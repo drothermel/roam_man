@@ -1,8 +1,110 @@
 import pytest
+from unittest.mock import patch
 from hypothesis import given
 from hypothesis import strategies as st
 
 from roam_man import roam_graph as gu
+
+
+# ----- Hand crafted data examples ----- #
+
+
+# Sample test data generated for static testing
+@pytest.fixture
+def static_test_data():
+    return [
+        # Single level
+        {
+            "uid": "tx0S2zj5t",
+            "create-time": 1694303705806,
+            "edit-time": 1694303705806,
+            "string": "nothing",
+            "title": "Danielle Rothermel",
+            ":create/user": {":user/uid": "XRlk7Tpv53UEosC4qi7bcFHhVPx1"},
+            ":edit/user": {":user/uid": "XRlk7Tpv53UEosC4qi7bcFHhVPx1"},
+        },
+        # Nested but empty children
+        {
+            "create-time": 1694303843654,
+            "title": "September 10th, 2023",
+            "string": "nothing",
+            ":create/user": {":user/uid": "XRlk7Tpv53UEosC4qi7bcFHhVPx1"},
+            ":log/id": 1694304000000,
+            "children": [],
+            "uid": "09-10-2023",
+            "edit-time": 1694303843654,
+            ":edit/user": {":user/uid": "XRlk7Tpv53UEosC4qi7bcFHhVPx1"},
+        },
+        # Nested with content
+        {
+            "create-time": 1699907527267,
+            "title": "Classification and Correction of Non-Representative News Headlines",
+            "string": "nothing",
+            ":create/user": {":user/uid": "XRlk7Tpv53UEosC4qi7bcFHhVPx1"},
+            "children": [
+                {
+                    "string": "#todo.to_process.move",
+                    "create-time": 1726760509745,
+                    ":block/refs": [{":block/uid": "pUoYhPB6m"}],
+                    "refs": [{"uid": "pUoYhPB6m"}],
+                    ":create/user": {":user/uid": "XRlk7Tpv53UEosC4qi7bcFHhVPx1"},
+                    "uid": "SbngKbqIX",
+                    "edit-time": 1726760513278,
+                    ":edit/user": {":user/uid": "XRlk7Tpv53UEosC4qi7bcFHhVPx1"},
+                },
+            ],
+            "uid": "DNqgQM5vZ",
+            "edit-time": 1699907527267,
+            ":edit/user": {":user/uid": "XRlk7Tpv53UEosC4qi7bcFHhVPx1"},
+        },
+    ]
+
+
+@pytest.fixture
+def valid_json():
+    return {
+        "title": "Sample Page",
+        "string": "This is a sample page",
+        "uid": "1234567890",
+        "create-time": 1694303705806,
+        "edit-time": 1694303705807,
+        "refs": [
+            {"uid": "ref1"},
+            {"uid": "KVGudD7AP"},
+            {"uid": "ref2"},
+        ],  # One blacklisted ref
+        "children": [
+            {
+                "title": "Child Page",
+                "string": "This is a child page",
+                "uid": "child_uid",
+                "create-time": 1694303705808,
+                "edit-time": 1694303705809,
+                "refs": [],
+            }
+        ],
+    }
+
+
+@pytest.fixture
+def raw_data():
+    return [
+        {
+            "title": "Page 1",
+            "string": "This is the first page",
+            "uid": "page1",
+            "create-time": 1694303705806,
+            "edit-time": 1694303705807,
+        },
+        {
+            "title": "Page 2",
+            "string": "This is the second page",
+            "uid": "page2",
+            "create-time": 1694303705808,
+            "edit-time": 1694303705809,
+        },
+    ]
+
 
 # ----- Setup Hypothesis Strategies and Functions ----- #
 
@@ -73,7 +175,7 @@ def make_strategy_from_children(children=None):
 
 
 # Hypothesis strategy to generate nested roam-like dictionaries
-def nested_roam_dict():
+def nested_roam_dict_st():
     first_node_dict = make_strategy_from_children()
     nested_roam_dict = st.recursive(
         first_node_dict,
@@ -83,55 +185,11 @@ def nested_roam_dict():
     return nested_roam_dict
 
 
-# Sample test data generated for static testing
-@pytest.fixture
-def static_test_data():
-    return [
-        # Single level
-        {
-            "uid": "tx0S2zj5t",
-            "create-time": 1694303705806,
-            "edit-time": 1694303705806,
-            "string": "nothing",
-            "title": "Danielle Rothermel",
-            ":create/user": {":user/uid": "XRlk7Tpv53UEosC4qi7bcFHhVPx1"},
-            ":edit/user": {":user/uid": "XRlk7Tpv53UEosC4qi7bcFHhVPx1"},
-        },
-        # Nested but empty children
-        {
-            "create-time": 1694303843654,
-            "title": "September 10th, 2023",
-            "string": "nothing",
-            ":create/user": {":user/uid": "XRlk7Tpv53UEosC4qi7bcFHhVPx1"},
-            ":log/id": 1694304000000,
-            "children": [],
-            "uid": "09-10-2023",
-            "edit-time": 1694303843654,
-            ":edit/user": {":user/uid": "XRlk7Tpv53UEosC4qi7bcFHhVPx1"},
-        },
-        # Nested with content
-        {
-            "create-time": 1699907527267,
-            "title": "Classification and Correction of Non-Representative News Headlines",
-            "string": "nothing",
-            ":create/user": {":user/uid": "XRlk7Tpv53UEosC4qi7bcFHhVPx1"},
-            "children": [
-                {
-                    "string": "#todo.to_process.move",
-                    "create-time": 1726760509745,
-                    ":block/refs": [{":block/uid": "pUoYhPB6m"}],
-                    "refs": [{"uid": "pUoYhPB6m"}],
-                    ":create/user": {":user/uid": "XRlk7Tpv53UEosC4qi7bcFHhVPx1"},
-                    "uid": "SbngKbqIX",
-                    "edit-time": 1726760513278,
-                    ":edit/user": {":user/uid": "XRlk7Tpv53UEosC4qi7bcFHhVPx1"},
-                },
-            ],
-            "uid": "DNqgQM5vZ",
-            "edit-time": 1699907527267,
-            ":edit/user": {":user/uid": "XRlk7Tpv53UEosC4qi7bcFHhVPx1"},
-        },
-    ]
+def full_raw_data_st():
+    return st.lists(nested_roam_dict_st, min_size=1, max_size=4)
+
+
+# ----- Test representation utils ----- #
 
 
 def check_expected_output(data, output):
@@ -158,9 +216,150 @@ def test_raw_roam_data_to_str_static(static_idx, static_test_data):
 
 
 # Test using dynamic test data with Hypothesis, main goal is to look for crashes
-@given(data=st.lists(nested_roam_dict(), min_size=1, max_size=10))
+@given(data=st.lists(nested_roam_dict_st(), min_size=1, max_size=10))
 def test_raw_roam_data_to_str_dynamic(data):
     check_expected_output(
         data[0],
         gu.roam_data_to_full_str(data[0]),
     )
+
+
+# ----- Test RoamNode ----- #
+
+
+def test_roam_node_initialization(valid_json):
+    # Test basic initialization and recursive child creation
+    node = gu.RoamNode(valid_json)
+    assert node.title == "Sample Page"
+    assert node.uid == "1234567890"
+    assert node.refs == ["ref1", "ref2"]  # Blacklisted ref should not be included
+    assert len(node.children) == 1
+    assert node.children[0].title == "Child Page"
+
+
+def test_roam_node_invalid_json():
+    # Test that it raises an exception for invalid input
+    with pytest.raises(Exception, match="RoamNode expects a non-null dict as input"):
+        gu.RoamNode(None)
+
+    with pytest.raises(Exception, match="RoamNode expects a non-null dict as input"):
+        gu.RoamNode("This is not a dict")
+
+
+def test_roam_node_recursive_refs(valid_json):
+    node = gu.RoamNode(valid_json)
+    assert "ref1" in node.recursive_refs
+    assert "ref2" in node.recursive_refs
+    assert (
+        "child_uid" not in node.recursive_refs
+    )  # Ensure child uid doesn't pollute recursive refs
+    assert len(node.children) == 1
+    assert node.children[0].parent == node  # Ensure parent relationship is correct
+    assert "ref1" in node.recursive_refs  # Child refs added to parent
+
+
+def test_roam_node_repr(valid_json):
+    node = gu.RoamNode(valid_json)
+    repr_str = repr(node)
+    assert "Sample Page" in repr_str
+    assert "1234567890" in repr_str
+    assert "ref1" in repr_str
+
+
+@given(valid_json=full_raw_data_st)
+def test_roam_node_initialization_hypothesis(valid_json):
+    node = gu.RoamNode(valid_json[0])
+    assert node.uid is not None
+    assert isinstance(node.refs, list)
+
+
+@given(valid_json=full_raw_data_st)
+def test_roam_node_recursive_refs_hypothesis(valid_json):
+    node = gu.RoamNode(valid_json[0])
+    assert isinstance(node.recursive_refs, set)
+    assert all(isinstance(ref, str) for ref in node.recursive_refs)
+
+
+@given(valid_json=full_raw_data_st)
+def test_roam_node_repr_hypothesis(valid_json):
+    node = gu.RoamNode(valid_json[0])
+    repr_str = repr(node)
+    assert node.uid in repr_str
+    assert isinstance(repr_str, str)
+
+
+# ----- Test gu.RoamGraph ----- #
+
+
+@patch("fu.load_file")
+def test_roam_graph_initialization(mock_load_file, raw_data):
+    # Mock file loading and ensure that the graph initializes properly
+    mock_load_file.return_value = raw_data
+    graph = gu.RoamGraph("fake_path")
+
+    assert len(graph.roam_pages) == 2
+    assert "Page 1" in graph.roam_pages
+    assert "Page 2" in graph.roam_pages
+    assert graph.uid_to_title["page1"] == "Page 1"
+    assert graph.uid_to_title["page2"] == "Page 2"
+
+
+@patch("fu.load_file")
+@patch("fu.dump_file")
+def test_roam_graph_checkpoint(mock_dump_file, mock_load_file, raw_data):
+    # Mock file loading and checkpoint saving
+    mock_load_file.return_value = raw_data
+    graph = gu.RoamGraph("fake_path", checkpoint_path="fake_checkpoint")  # noqa: F841
+
+    # Check that dump_file was called to save a checkpoint
+    mock_dump_file.assert_called_once()
+
+
+def test_roam_graph_get_page_node_by_index(raw_data):
+    with patch("fu.load_file", return_value=raw_data):
+        graph = gu.RoamGraph("fake_path")
+
+        page_node = graph.get_page_node_by_index(0)
+        assert page_node.uid == "page1"
+        assert page_node.title == "Page 1"
+
+        page_node = graph.get_page_node_by_index(1)
+        assert page_node.uid == "page2"
+        assert page_node.title == "Page 2"
+
+
+@given(raw_data=full_raw_data_st)
+@patch("fu.load_file")
+def test_roam_graph_initialization_hypothesis(mock_load_file, raw_data):
+    # Mock file loading
+    mock_load_file.return_value = raw_data
+    graph = gu.RoamGraph("fake_path")
+
+    assert len(graph.roam_pages) == len(raw_data)
+    assert all(isinstance(k, str) for k in graph.roam_pages.keys())
+    assert all(isinstance(v, gu.RoamNode) for v in graph.roam_pages.values())
+
+
+@given(raw_data=full_raw_data_st)
+@patch("fu.load_file")
+@patch("fu.dump_file")
+def test_roam_graph_checkpoint_hypothesis(mock_dump_file, mock_load_file, raw_data):
+    # Mock file loading and checkpoint saving
+    mock_load_file.return_value = raw_data
+
+    graph = gu.RoamGraph("fake_path", checkpoint_path="fake_checkpoint")  # noqa: F841
+
+    # Check that dump_file was called to save a checkpoint
+    mock_dump_file.assert_called_once()
+
+
+@given(raw_data=full_raw_data_st)
+@patch("fu.load_file")
+def test_roam_graph_get_page_node_by_index_hypothesis(mock_load_file, raw_data):
+    mock_load_file.return_value = raw_data
+    graph = gu.RoamGraph("fake_path")
+
+    for idx, page in enumerate(raw_data):
+        page_node = graph.get_page_node_by_index(idx)
+        assert page_node.uid == page["uid"]
+        assert page_node.title == page["title"]
