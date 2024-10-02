@@ -7,7 +7,13 @@ from dr_util import file_utils as fu
 
 # To use: print(buffer.getvalue()); buffer.close()
 def add_roam_elem_str_to_buffer(
-    uid, refs=[], title=None, string=None, buffer=None, depth=0, verbose=True,
+    uid,
+    refs=[],
+    title=None,
+    string=None,
+    buffer=None,
+    depth=0,
+    verbose=True,
 ):
     if buffer is None:
         buffer = io.StringIO()
@@ -30,6 +36,7 @@ def add_roam_elem_str_to_buffer(
 #   with the expected keys
 def roam_data_to_full_str(roam_data_elem, verbose=True):
     buffer = io.StringIO()
+
     def add_node_subtree(node, first=False, depth=0):
         if not isinstance(node, dict):
             node = node.__dict__
@@ -48,7 +55,7 @@ def roam_data_to_full_str(roam_data_elem, verbose=True):
         )
         n_children = node.get("children", [])
         for nc in n_children:
-            add_node_subtree(nc, first=False, depth=depth+1)
+            add_node_subtree(nc, first=False, depth=depth + 1)
 
     add_node_subtree(roam_data_elem, first=True, depth=0)
     result = buffer.getvalue()
