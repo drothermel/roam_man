@@ -7,7 +7,13 @@ from dr_util import file_utils as fu
 
 # To use: print(buffer.getvalue()); buffer.close()
 def add_roam_elem_str_to_buffer(
-    uid, refs=[], title=None, string=None, buffer=None, depth=0
+    uid,
+    refs=[],
+    title=None,
+    string=None,
+    buffer=None,
+    depth=0,
+    verbose=True,
 ):
     if buffer is None:
         buffer = io.StringIO()
@@ -15,30 +21,28 @@ def add_roam_elem_str_to_buffer(
     indent = "  " * depth
     if title is not None:
         assert depth == 0  # only pages (depth 0 nodes) have titles
-        buffer.write(f"{title}\n {indent} {uid=} {refs=}\n")
+        buffer.write(f"{title}\n")
+        if verbose:
+            buffer.write(f" {indent} {uid=} {refs=}\n")
     else:
         assert string is not None  # no title means yes string
         buffer.write(f"{indent} - {string}")
-        if len(refs) > 0:
+        if len(refs) > 0 and verbose:
             buffer.write(f"\n{indent} ==> {uid=} {refs=}\n")
     return buffer
 
 
 # Works for anything where the __dict__ method returns a dict
 #   with the expected keys
-def roam_data_to_full_str(roam_data_elem):
+def roam_data_to_full_str(roam_data_elem, verbose=True):
     buffer = io.StringIO()
-    nodes = [roam_data_elem]
-    i = 0
 
-    while i < len(nodes):
-        if i > 0:
-            buffer.write("\n")
-
-        node = nodes[i]
+    def add_node_subtree(node, first=False, depth=0):
         if not isinstance(node, dict):
             node = node.__dict__
 
+        if not first:
+            buffer.write("\n")
         refs = [r if isinstance(r, str) else r["uid"] for r in node.get("refs", [])]
         add_roam_elem_str_to_buffer(
             uid=node["uid"],
@@ -46,14 +50,14 @@ def roam_data_to_full_str(roam_data_elem):
             title=node.get("title", None),
             string=node.get("string", None),
             buffer=buffer,
+            depth=depth,
+            verbose=verbose,
         )
+        n_children = node.get("children", [])
+        for nc in n_children:
+            add_node_subtree(nc, first=False, depth=depth + 1)
 
-        # Safely add children to the end of the list
-        nodes.extend(node.get("children", []))
-
-        # Move to the next node
-        i += 1
-
+    add_node_subtree(roam_data_elem, first=True, depth=0)
     result = buffer.getvalue()
     buffer.close()
     return result
@@ -100,13 +104,17 @@ class RoamNode:
             title=self.title,
             string=self.string,
             depth=self.depth,
+            verbose=True,
         )
         rep = buffer.getvalue()
         buffer.close()
         return rep
 
-    def print_full(self):
-        print(roam_data_to_full_str(self))
+    def print_full(self, verbose=True):
+        print(roam_data_to_full_str(self, verbose=verbose))
+
+    def to_str_full(self, verbose=True):
+        return roam_data_to_full_str(self, verbose=verbose)
 
 
 # Uses validation_utils
